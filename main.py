@@ -108,6 +108,7 @@ async def user_chat(req: ChatRequest):
     try:
         # If image_url is provided, download the image and convert to Part
         if len(str(req.image_url))>2:
+            return(str(len(str(req.image_url))))
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.get(str(req.image_url))
