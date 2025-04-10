@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+gunicorn
+fastapi
+httpx
+pydantic
+redis
+google-genai
