@@ -105,43 +105,50 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def user_chat(req: ChatRequest):
     message = []
+    try:
+        # If image_url is provided, download the image and convert to Part
+        if len(str(req.image_url))>2:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(str(req.image_url))
+                    response.raise_for_status()
+                    image_bytes = response.content
+                b64_image = Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to download or process image: {e}")
 
-    # If image_url is provided, download the image and convert to Part
-    if req.image_url:
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(str(req.image_url))
-                response.raise_for_status()
-                image_bytes = response.content
-            b64_image = Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to download or process image: {e}")
+            if req.user_query:
+                message = [req.user_query, b64_image]
+            else:
+                message = [b64_image]
+        elif req.user_query:
+            message = [req.user_query]
 
-        if req.user_query:
-            message = [req.user_query, b64_image]
-        else:
-            message = [b64_image]
-    elif req.user_query:
-        message = [req.user_query]
+        if not message:
+            raise HTTPException(status_code=400, detail="Either user_query or image_url must be provided")
 
-    if not message:
-        raise HTTPException(status_code=400, detail="Either user_query or image_url must be provided")
+        res = send_message(
+            user_id=req.user_id,
+            model='gemini-2.0-flash',
+            message=message,
+            config={
+                "system_instruction": req.prompt,
+                "temperature": 0.5,
+            }
+        )
 
-    res = send_message(
-        user_id=req.user_id,
-        model='gemini-2.0-flash',
-        message=message,
-        config={
-            "system_instruction": req.prompt,
-            "temperature": 0.5,
+        return {
+            "user_query": req.user_query,
+            "generated_response": res.candidates[0].content.parts[0].text,
+            "total_token_count": res.usage_metadata.total_token_count,
         }
-    )
+    except:
+        return {
+            "user_query": req.user_query,
+            "generated_response": 'error',
+            "total_token_count": 0,
+        }
 
-    return {
-        "user_query": req.user_query,
-        "generated_response": res.candidates[0].content.parts[0].text,
-        "total_token_count": res.usage_metadata.total_token_count,
-    }
 
 @app.get("/")
 def root():
