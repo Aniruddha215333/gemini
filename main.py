@@ -130,7 +130,7 @@ async def user_chat(req: ChatRequest):
 
         res = send_message(
             user_id=req.user_id,
-            model='gemini-2.0-flash',
+            model='gemini-2.5-pro-preview-03-25',
             message=message,
             config={
                 "system_instruction": req.prompt,
